@@ -303,11 +303,52 @@ export const getSuggestedQuestions = async (messageId, user = 'default_user') =>
   }
 };
 
+/**
+ * 发送消息反馈（点赞/点踩）
+ * @param {string} messageId - 消息ID
+ * @param {string} rating - 反馈类型：like(点赞), dislike(点踩), null(撤销)
+ * @param {string} user - 用户标识
+ * @param {string} content - 反馈内容（可选）
+ * @returns {Promise} - 返回反馈结果Promise
+ */
+export const feedbackMessage = async (messageId, rating, user = 'default_user', content = '') => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}/feedbacks`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ rating, user, content })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || '发送反馈失败');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('发送反馈失败:', error);
+    // 提供更具体的错误信息
+    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+      throw new Error('网络连接错误，请检查您的网络连接');
+    } else if (error.message && error.message.includes('API key')) {
+      throw new Error('API密钥无效或未正确设置，请检查您的API密钥');
+    } else if (!apiKey) {
+      throw new Error('API密钥未设置，请先设置API密钥');
+    } else {
+      throw new Error(error.message || '发送反馈时出现错误，请稍后重试');
+    }
+  }
+};
+
 export default {
   setApiKey,
   sendChatMessage,
   handleStreamResponse,
   uploadFile,
   stopChatMessage,
-  getSuggestedQuestions
+  getSuggestedQuestions,
+  feedbackMessage
 };

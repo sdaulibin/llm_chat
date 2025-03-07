@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, onMounted, defineEmits } from 'vue';
-import { setApiKey, sendChatMessage, handleStreamResponse, stopChatMessage, getSuggestedQuestions } from '../services/difyApi';
+import { setApiKey, sendChatMessage, handleStreamResponse, stopChatMessage, getSuggestedQuestions, feedbackMessage } from '../services/difyApi';
 import MarkdownIt from 'markdown-it';
 
 const props = defineProps({
@@ -29,7 +29,9 @@ const suggestedQuestions = ref([]);
 const messages = ref([
   {
     type: 'bot',
-    content: '您好！我是您的智能办公助手。请先设置API密钥以开始对话。'
+    content: '您好！我是您的智能办公助手。请先设置API密钥以开始对话。',
+    messageId: null,
+    feedback: null
   }
 ]);
 
@@ -118,13 +120,19 @@ const sendToDify = async (query) => {
           messages.value.push({
             type: 'bot',
             content: fullResponse,
-            isLoading: true
+            isLoading: true,
+            messageId: data.messageId,
+            feedback: null
           });
         } else {
           // 更新现有的加载中消息
           const loadingMessage = messages.value.find(m => m.type === 'bot' && m.isLoading);
           if (loadingMessage) {
             loadingMessage.content = fullResponse;
+            // 确保messageId被保存
+            if (data.messageId && !loadingMessage.messageId) {
+              loadingMessage.messageId = data.messageId;
+            }
           }
         }
 
@@ -282,6 +290,34 @@ const showCopySuccess = () => {
     copySuccess.value = null;
   }, 2000);
 };
+
+// 发送消息反馈（点赞/点踩）
+const sendFeedback = async (messageId, rating) => {
+  if (!messageId) return;
+  
+  try {
+    // 查找当前消息
+    const message = messages.value.find(m => m.messageId === messageId);
+    if (!message) return;
+    
+    // 如果当前反馈与新反馈相同，则撤销反馈
+    const newRating = message.feedback === rating ? null : rating;
+    
+    // 更新消息的反馈状态
+    message.feedback = newRating;
+    
+    // 发送反馈到Dify API
+    await feedbackMessage(messageId, newRating, 'abc-123');
+    
+  } catch (error) {
+    console.error('发送反馈失败:', error);
+    // 恢复原始反馈状态
+    const message = messages.value.find(m => m.messageId === messageId);
+    if (message) {
+      message.feedback = message.feedback === rating ? null : message.feedback;
+    }
+  }
+};
 </script>
 
 <template>
@@ -302,6 +338,17 @@ const showCopySuccess = () => {
           <span v-if="copySuccess === true">已复制</span>
           <span v-else>复制</span>
         </button>
+        <!-- 为AI回答添加点赞按钮 -->
+        <div v-if="message.type === 'bot' && message.messageId && index > 0" class="feedback-buttons">
+          <button 
+            class="feedback-button" 
+            :class="{ 'active': message.feedback === 'like' }" 
+            @click="sendFeedback(message.messageId, 'like')"
+          >
+            <i class="fas fa-thumbs-up"></i>
+            <span>{{ message.feedback === 'like' ? '已点赞' : '点赞' }}</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -582,6 +629,40 @@ button.stop-button:hover {
 }
 
 .copy-button i {
+  margin-right: 4px;
+}
+
+/* 点赞按钮样式 */
+.feedback-buttons {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+  gap: 8px;
+}
+
+.feedback-button {
+  background: transparent;
+  color: #64748b;
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.feedback-button:hover {
+  background: #f1f5f9;
+  color: #1e3a8a;
+}
+
+.feedback-button.active {
+  background: #1e3a8a;
+  color: white;
+  border-color: #1e3a8a;
+}
+
+.feedback-button i {
   margin-right: 4px;
 }
 </style>
