@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>银行智能办公助手</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-content {
+            flex: 1;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 20px;
+            border-bottom: 1px solid #e6e8eb;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            color: #1e3a8a;
+        }
+
+        .chat-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .input-container {
+            padding: 20px;
+            border-top: 1px solid #e6e8eb;
+        }
+
+        .input-box {
+            display: flex;
+            gap: 12px;
+        }
+
+        textarea {
+            flex: 1;
+            height: 80px;
+            padding: 12px;
+            border: 1px solid #e6e8eb;
+            border-radius: 8px;
+            resize: none;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #1e3a8a;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background: #1e40af;
+        }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .history-item:hover {
+            background: #f1f5f9;
+        }
+
+        .history-item i {
+            color: #64748b;
+        }
+
+        .message {
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+        }
+
+        .message .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            background: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .message .content {
+            flex: 1;
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .message.user .content {
+            background: #eff6ff;
+        }
+
+        .tools {
+            margin-bottom: 24px;
+        }
+
+        .tools h2 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="tools">
+                <h2>知识库</h2>
+            </div>
+            <div class="history-list">
+                <div class="history-item">
+                    <i class="fas fa-history"></i>
+                    <span>如何处理客户投诉？</span>
+                </div>
+                <div class="history-item">
+                    <i class="fas fa-history"></i>
+                    <span>贷款审批流程是什么？</span>
+                </div>
+                <div class="history-item">
+                    <i class="fas fa-history"></i>
+                    <span>如何进行风险评估？</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="header">
+                <i class="fas fa-robot" style="font-size: 24px; color: #1e3a8a;"></i>
+                <h1>智能办公助手</h1>
+            </header>
+
+            <div class="chat-container">
+                <div class="message">
+                    <div class="avatar">
+                        <i class="fas fa-robot" style="color: #64748b;"></i>
+                    </div>
+                    <div class="content">
+                        您好！我是您的智能办公助手。请问有什么可以帮您？
+                    </div>
+                </div>
+
+                <div class="message user">
+                    <div class="avatar">
+                        <i class="fas fa-user" style="color: #64748b;"></i>
+                    </div>
+                    <div class="content">
+                        请介绍一下贷款审批的基本流程。
+                    </div>
+                </div>
+
+                <div class="message">
+                    <div class="avatar">
+                        <i class="fas fa-robot" style="color: #64748b;"></i>
+                    </div>
+                    <div class="content">
+                        贷款审批的基本流程包括以下步骤：<br><br>
+                        1. 受理申请：收集客户资料，确认申请材料完整性<br>
+                        2. 尽职调查：实地走访，核实客户信息<br>
+                        3. 风险评估：评估客户还款能力和信用状况<br>
+                        4. 审批决策：根据调查结果作出审批决定<br>
+                        5. 签约放款：与客户签订合同，办理放款手续<br><br>
+                        需要了解具体某个环节的详细信息吗？
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-container">
+                <div class="input-box">
+                    <textarea placeholder="请输入您的问题..."></textarea>
+                    <button>
+                        <i class="fas fa-paper-plane"></i>
+                        发送
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
