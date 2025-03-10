@@ -4,8 +4,9 @@
  */
 
 // API基础URL
-const API_BASE_URL = 'http://localhost/v1';
-
+// const API_BASE_URL = 'http://localhost/v1';
+const API_BASE_URL = 'http://localhost:8090/v1';
+//const API_BASE_URL = 'http://10.238.149.28:30000/v1';
 // 存储API密钥
 let apiKey = '';
 
@@ -39,7 +40,7 @@ export const sendChatMessage = async ({
     const response = await fetch(`${API_BASE_URL}/chat-messages`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        // 'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -102,6 +103,7 @@ export const handleStreamResponse = async (response, {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let isFirstMessage = true;
 
     while (true) {
       // 检查是否已被中断
@@ -130,6 +132,10 @@ export const handleStreamResponse = async (response, {
             // 根据事件类型处理数据
             switch (data.event) {
               case 'message':
+                if (isFirstMessage && data.answer && data.answer.toLowerCase().includes('think')) {
+                  data.answer = '<details style="color:gray;background-color: #f8f8f8;padding: 8px;border-radius: 4px;" open> <summary> Thinking... </summary>';
+                  isFirstMessage = false;
+                }
                 onMessage && onMessage({
                   type: 'message',
                   content: data.answer,
@@ -316,7 +322,7 @@ export const feedbackMessage = async (messageId, rating, user = 'default_user', 
     const response = await fetch(`${API_BASE_URL}/messages/${messageId}/feedbacks`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        //'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ rating, user, content })

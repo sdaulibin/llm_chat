@@ -7,14 +7,68 @@ const props = defineProps({
   selectedHistory: {
     type: String,
     default: ''
+  },
+  conversationId: {
+    type: String,
+    default: ''
   }
 });
 
 // 定义事件
-const emit = defineEmits(['add-history']);
+const emit = defineEmits(['add-history', 'save-conversation']);
+
+// 重置聊天内容的方法
+const resetChat = () => {
+  messages.value = [
+    {
+      type: 'bot',
+      content: '您好！我是您的智能办公助手。请问有什么可以帮您？',
+      messageId: null,
+      feedback: null
+    }
+  ];
+  conversationId.value = '';
+  currentMessageId.value = '';
+  isLoading.value = false;
+  suggestedQuestions.value = [];
+  newMessage.value = '';
+};
+
+// 加载会话内容的方法
+const loadConversation = (session) => {
+  if (session && session.id) {
+    conversationId.value = session.id;
+    // 如果会话有保存的消息，则加载这些消息
+    if (session.messages && session.messages.length > 0) {
+      messages.value = session.messages;
+    } else {
+      // 否则重置聊天
+      resetChat();
+    }
+  }
+};
+
+// 保存当前会话消息
+const saveCurrentConversation = () => {
+  if (props.conversationId) {
+    // 触发保存事件，让父组件处理保存逻辑
+    emit('save-conversation', {
+      id: props.conversationId,
+      messages: messages.value
+    });
+  }
+};
+
+// 暴露方法给父组件
+defineExpose({
+  resetChat,
+  loadConversation
+});
 
 // Dify API密钥 - 已直接设置，无需用户输入
-const API_KEY = ref('app-CVmaUK0HDbPgzocvGfjSjN4R');
+//const API_KEY = ref('app-CVmaUK0HDbPgzocvGfjSjN4R');
+const API_KEY = ref('app-dRSe1A33PkkMZiXTp6JHrQdy');
+// const API_KEY = ref('app-WM6ZwfOrPn90GTPLi12FkXGV');
 // 当前会话ID
 const conversationId = ref('');
 // 当前消息ID，用于停止响应
@@ -93,11 +147,14 @@ const saveApiKey = () => {
 const sendToDify = async (query) => {
   isLoading.value = true;
   try {
+    // 直接使用props中的conversationId，不再需要生成新的conversationId
+    // 如果有现有的conversationId则使用，否则API会自动生成
+    
     // 发送消息到Dify API
     const response = await sendChatMessage({
       query,
       inputs: {}, // 应用定义的变量值
-      conversationId: conversationId.value,
+      conversationId: '', // 不基于之前的聊天记录继续对话，发送空字符串
       user: 'abc-123', // 使用文档中的用户标识
       streaming: true, // 使用流式响应
       files: [] // 可以在这里添加文件，格式为[{type, transfer_method, url}]
@@ -193,6 +250,9 @@ const sendMessage = () => {
   
   // 将问题添加到历史记录
   emit('add-history', userQuestion);
+  
+  // 保存当前会话消息
+  saveCurrentConversation();
   
   // 检查API密钥是否已设置
   if (!API_KEY.value) {
