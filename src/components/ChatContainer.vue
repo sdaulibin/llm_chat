@@ -157,7 +157,8 @@ const sendToDify = async (query) => {
       conversationId: '', // 不基于之前的聊天记录继续对话，发送空字符串
       user: 'abc-123', // 使用文档中的用户标识
       streaming: true, // 使用流式响应
-      files: [] // 可以在这里添加文件，格式为[{type, transfer_method, url}]
+      files: [], // 可以在这里添加文件，格式为[{type, transfer_method, url}]
+      session_id: props.conversationId // 传递当前对话ID
     });
 
     // 处理流式响应
@@ -273,7 +274,7 @@ const stopResponse = async () => {
   if (!currentMessageId.value || !isLoading.value) return;
   
   try {
-    await stopChatMessage(currentMessageId.value, 'abc-123');
+    await stopChatMessage(currentMessageId.value, 'abc-123', props.conversationId);
     isLoading.value = false;
     
     // 更新消息状态
@@ -290,7 +291,7 @@ const stopResponse = async () => {
 // 获取下一轮建议问题列表
 const fetchSuggestedQuestions = async (messageId) => {
   try {
-    const response = await getSuggestedQuestions(messageId, 'abc-123');
+    const response = await getSuggestedQuestions(messageId, 'abc-123', props.conversationId);
     console.log('建议问题API返回数据:', response);
     if (response && response.result === 'success' && response.data && Array.isArray(response.data)) {
       // 更新建议问题列表
@@ -367,7 +368,7 @@ const sendFeedback = async (messageId, rating) => {
     message.feedback = newRating;
     
     // 发送反馈到Dify API
-    await feedbackMessage(messageId, newRating, 'abc-123');
+    await feedbackMessage(messageId, newRating, 'abc-123', '', props.conversationId);
     
   } catch (error) {
     console.error('发送反馈失败:', error);

@@ -26,6 +26,7 @@ export const setApiKey = (key) => {
  * @param {string} user - 用户标识
  * @param {boolean} streaming - 是否使用流式响应
  * @param {array} files - 要随消息一起发送的文件数组，格式为[{type, transfer_method, url}]
+ * @param {string} session_id - 当前对话的ID
  * @returns {Promise} - 返回响应Promise
  */
 export const sendChatMessage = async ({
@@ -34,7 +35,8 @@ export const sendChatMessage = async ({
   conversationId = '',
   user = 'default_user',
   streaming = true,
-  files = []
+  files = [],
+  session_id = ''
 }) => {
   try {
     const response = await fetch(`${API_BASE_URL}/chat-messages`, {
@@ -49,7 +51,8 @@ export const sendChatMessage = async ({
         user,
         conversation_id: conversationId,
         response_mode: streaming ? 'streaming' : 'blocking',
-        files
+        files,
+        session_id
       })
     });
 
@@ -135,6 +138,9 @@ export const handleStreamResponse = async (response, {
                 if (isFirstMessage && data.answer && data.answer.toLowerCase().includes('think')) {
                   data.answer = '<details style="color:gray;background-color: #f8f8f8;padding: 8px;border-radius: 4px;" open> <summary> Thinking... </summary>';
                   isFirstMessage = false;
+                }
+                if (!isFirstMessage && data.answer && data.answer.toLowerCase().includes('</think>')) {
+                  data.answer = '</details>';
                 }
                 onMessage && onMessage({
                   type: 'message',
@@ -231,9 +237,10 @@ export const uploadFile = async (file, user = 'default_user') => {
  * 停止响应
  * @param {string} taskId - 任务ID，可在流式返回Chunk中获取
  * @param {string} user - 用户标识，必须和发送消息接口传入user保持一致
+ * @param {string} session_id - 当前对话的ID
  * @returns {Promise} - 返回停止结果Promise
  */
-export const stopChatMessage = async (taskId, user = 'default_user') => {
+export const stopChatMessage = async (taskId, user = 'default_user', session_id = '') => {
   try {
     // 首先中断当前的流式响应（如果存在）
     if (window._streamController) {
@@ -248,7 +255,7 @@ export const stopChatMessage = async (taskId, user = 'default_user') => {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ user })
+      body: JSON.stringify({ user, session_id })
     });
 
     if (!response.ok) {
@@ -276,11 +283,12 @@ export const stopChatMessage = async (taskId, user = 'default_user') => {
  * 获取下一轮建议问题列表
  * @param {string} messageId - 消息ID
  * @param {string} user - 用户标识
+ * @param {string} session_id - 当前对话的ID
  * @returns {Promise} - 返回建议问题列表Promise
  */
-export const getSuggestedQuestions = async (messageId, user = 'default_user') => {
+export const getSuggestedQuestions = async (messageId, user = 'default_user', session_id = '') => {
   try {
-    const response = await fetch(`${API_BASE_URL}/messages/${messageId}/suggested?user=${user}`, {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}/suggested?user=${user}&session_id=${session_id}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -315,17 +323,21 @@ export const getSuggestedQuestions = async (messageId, user = 'default_user') =>
  * @param {string} rating - 反馈类型：like(点赞), dislike(点踩), null(撤销)
  * @param {string} user - 用户标识
  * @param {string} content - 反馈内容（可选）
+ * @param {string} session_id - 当前对话的ID
  * @returns {Promise} - 返回反馈结果Promise
  */
-export const feedbackMessage = async (messageId, rating, user = 'default_user', content = '') => {
+export const feedbackMessage = async (messageId, rating, user = 'default_user', content = '', session_id = '') => {
   try {
+    // 确保session_id不为空，如果为空则使用一个默认值
+    const effectiveSessionId = session_id || `session-${Date.now()}`;
+    
     const response = await fetch(`${API_BASE_URL}/messages/${messageId}/feedbacks`, {
       method: 'POST',
       headers: {
         //'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ rating, user, content })
+      body: JSON.stringify({ rating, user, content, session_id: effectiveSessionId })
     });
 
     if (!response.ok) {
