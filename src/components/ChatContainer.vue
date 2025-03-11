@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, onMounted, defineEmits } from 'vue';
-import { setApiKey, sendChatMessage, handleStreamResponse, stopChatMessage, getSuggestedQuestions, feedbackMessage } from '../services/difyApi';
+import { setApiKey, sendChatMessage, handleStreamResponse, stopChatMessage, getSuggestedQuestions, feedbackMessage, uploadFile } from '../services/difyApi';
 import MarkdownIt from 'markdown-it';
 
 const props = defineProps({
@@ -79,6 +79,12 @@ const isLoading = ref(false);
 const showApiKeyInput = ref(false);
 // 建议问题列表
 const suggestedQuestions = ref([]);
+// 上传的文件列表
+const uploadedFiles = ref([]);
+// 是否正在上传文件
+const isUploading = ref(false);
+// 上传错误信息
+const uploadError = ref('');
 
 const messages = ref([
   {
@@ -143,12 +149,71 @@ const saveApiKey = () => {
   ];
 };
 
+// 处理文件上传
+const handleFileUpload = async (event) => {
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
+  
+  isUploading.value = true;
+  uploadError.value = '';
+  
+  try {
+    // 检查文件类型
+    const file = files[0];
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
+    
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error('只支持PNG、JPEG、JPG、WEBP和GIF格式的图片');
+    }
+    
+    // 上传文件
+    const result = await uploadFile(file, 'abc-123');
+    
+    // 添加到已上传文件列表
+    uploadedFiles.value.push({
+      id: result.id,
+      name: result.name,
+      type: 'image',
+      transfer_method: 'local_file',
+      upload_file_id: result.id,
+      preview: URL.createObjectURL(file)
+    });
+    
+  } catch (error) {
+    console.error('文件上传失败:', error);
+    uploadError.value = error.message || '文件上传失败，请重试';
+  } finally {
+    isUploading.value = false;
+    // 清空文件输入框，允许重新选择同一文件
+    event.target.value = '';
+  }
+};
+
+// 移除已上传的文件
+const removeFile = (fileId) => {
+  const fileIndex = uploadedFiles.value.findIndex(file => file.id === fileId);
+  if (fileIndex !== -1) {
+    // 如果文件有预览URL，释放它
+    if (uploadedFiles.value[fileIndex].preview) {
+      URL.revokeObjectURL(uploadedFiles.value[fileIndex].preview);
+    }
+    uploadedFiles.value.splice(fileIndex, 1);
+  }
+};
+
 // 发送消息到Dify API
 const sendToDify = async (query) => {
   isLoading.value = true;
   try {
     // 直接使用props中的conversationId，不再需要生成新的conversationId
     // 如果有现有的conversationId则使用，否则API会自动生成
+    
+    // 准备文件数据
+    const files = uploadedFiles.value.map(file => ({
+      type: file.type,
+      transfer_method: file.transfer_method,
+      upload_file_id: file.upload_file_id
+    }));
     
     // 发送消息到Dify API
     const response = await sendChatMessage({
@@ -157,7 +222,7 @@ const sendToDify = async (query) => {
       conversationId: '', // 不基于之前的聊天记录继续对话，发送空字符串
       user: 'abc-123', // 使用文档中的用户标识
       streaming: true, // 使用流式响应
-      files: [], // 可以在这里添加文件，格式为[{type, transfer_method, url}]
+      files: files, // 添加上传的文件
       session_id: props.conversationId // 传递当前对话ID
     });
 
@@ -238,12 +303,16 @@ const sendToDify = async (query) => {
 };
 
 const sendMessage = () => {
-  if (!newMessage.value.trim() || isLoading.value) return;
+  if ((!newMessage.value.trim() && uploadedFiles.value.length === 0) || isLoading.value) return;
+  
+  // 构建用户消息内容
+  let userContent = newMessage.value;
   
   // 添加用户消息
   messages.value.push({
     type: 'user',
-    content: newMessage.value
+    content: userContent,
+    files: [...uploadedFiles.value] // 保存文件信息的副本
   });
   
   const userQuestion = newMessage.value;
@@ -267,6 +336,9 @@ const sendMessage = () => {
   
   // 发送消息到Dify API
   sendToDify(userQuestion);
+  
+  // 清空已上传的文件列表
+  uploadedFiles.value = [];
 };
 
 // 停止响应
@@ -391,6 +463,12 @@ const sendFeedback = async (messageId, rating) => {
         <i class="fas" :class="message.type === 'user' ? 'fa-user' : 'fa-robot'" style="color: #64748b;"></i>
       </div>
       <div class="content-wrapper">
+        <!-- 显示上传的文件 -->
+        <div v-if="message.files && message.files.length > 0" class="message-files">
+          <div v-for="file in message.files" :key="file.id" class="message-file-preview">
+            <img :src="file.preview" :alt="file.name" />
+          </div>
+        </div>
         <div class="content" v-html="message.type === 'user' ? message.content.replace(/\n/g, '<br>') : md.render(message.content)">
         </div>
         <!-- 只为AI回答添加复制按钮，并且不是初始化消息 -->
@@ -430,16 +508,51 @@ const sendFeedback = async (messageId, rating) => {
       </div>
     </div>
     
+    <!-- 文件上传区域 -->
+    <div class="file-upload-area">
+      <label for="file-upload" class="file-upload-button" :class="{ 'disabled': isUploading }">
+        <i class="fas fa-image"></i>
+        {{ isUploading ? '上传中...' : '上传图片' }}
+      </label>
+      <input 
+        id="file-upload" 
+        type="file" 
+        accept="image/png,image/jpeg,image/jpg,image/webp,image/gif" 
+        @change="handleFileUpload" 
+        :disabled="isUploading"
+      />
+      
+      <!-- 上传错误提示 -->
+      <div v-if="uploadError" class="upload-error">
+        <i class="fas fa-exclamation-circle"></i>
+        {{ uploadError }}
+      </div>
+      
+      <!-- 已上传文件预览 -->
+      <div v-if="uploadedFiles.length > 0" class="uploaded-files">
+        <div v-for="file in uploadedFiles" :key="file.id" class="file-preview">
+          <img :src="file.preview" :alt="file.name" />
+          <button class="remove-file" @click="removeFile(file.id)">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+    
     <div class="input-box">
-      <textarea v-model="newMessage" placeholder="请输入您的问题..." @keyup.enter.ctrl="sendMessage"></textarea>
-      <button v-if="!isLoading" @click="sendMessage" :disabled="showApiKeyInput">
-        <i class="fas fa-paper-plane"></i>
-        发送
-      </button>
-      <button v-else class="stop-button" @click="stopResponse">
-        <i class="fas fa-stop"></i>
-        停止
-      </button>
+      <div class="input-content">
+        <textarea v-model="newMessage" placeholder="请输入您的问题..." @keyup.enter.ctrl="sendMessage"></textarea>
+      </div>
+      <div class="input-actions">
+        <button v-if="!isLoading" @click="sendMessage" :disabled="showApiKeyInput || isUploading">
+          <i class="fas fa-paper-plane"></i>
+          发送
+        </button>
+        <button v-else class="stop-button" @click="stopResponse">
+          <i class="fas fa-stop"></i>
+          停止
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -461,17 +574,176 @@ const sendFeedback = async (messageId, rating) => {
 
 .input-box {
   display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
-textarea {
+.input-content {
+  position: relative;
   flex: 1;
+}
+
+textarea {
+  width: 100%;
   height: 80px;
   padding: 12px;
   border: 1px solid #e6e8eb;
   border-radius: 8px;
   resize: none;
   font-size: 14px;
+}
+
+.uploaded-files-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+  background: #f8fafc;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.file-preview-inline {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #e6e8eb;
+}
+
+.file-preview-inline img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-file-inline {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  font-size: 10px;
+}
+
+.remove-file-inline:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.file-upload-button-inline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: #f1f5f9;
+  color: #1e3a8a;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.file-upload-button-inline:hover {
+  background: #e2e8f0;
+}
+
+.file-upload-button-inline.disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* 文件上传相关样式 */
+.file-upload-area {
+  margin-bottom: 12px;
+}
+
+.file-upload-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #f1f5f9;
+  color: #1e3a8a;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.file-upload-button:hover {
+  background: #e2e8f0;
+}
+
+.file-upload-button.disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+input[type="file"] {
+  display: none;
+}
+
+.upload-error {
+  margin-top: 8px;
+  color: #dc2626;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.uploaded-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.file-preview {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e6e8eb;
+}
+
+.file-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-file {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+}
+
+.remove-file:hover {
+  background: rgba(0, 0, 0, 0.7);
 }
 
 button {
@@ -725,5 +997,27 @@ button.stop-button:hover {
 
 .feedback-button i {
   margin-right: 4px;
+}
+
+/* 消息中的文件预览样式 */
+.message-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.message-file-preview {
+  width: 150px;
+  height: 150px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e6e8eb;
+}
+
+.message-file-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 </style>
