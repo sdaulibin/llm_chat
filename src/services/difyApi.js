@@ -196,13 +196,15 @@ export const handleStreamResponse = async (response, {
  * 上传文件
  * @param {File} file - 要上传的文件
  * @param {string} user - 用户标识
+ * @param {string} session_id - 会话ID
  * @returns {Promise} - 返回上传结果Promise
  */
-export const uploadFile = async (file, user = 'default_user') => {
+export const uploadFile = async (file, user = 'default_user', session_id = '') => {
   try {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('user', user);
+    formData.append('session_id', session_id);
 
     const response = await fetch(`${API_BASE_URL}/files/upload`, {
       method: 'POST',

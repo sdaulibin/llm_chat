@@ -2,6 +2,7 @@
 import { ref, watch, onMounted, defineEmits } from 'vue';
 import { setApiKey, sendChatMessage, handleStreamResponse, stopChatMessage, getSuggestedQuestions, feedbackMessage, uploadFile } from '../services/difyApi';
 import MarkdownIt from 'markdown-it';
+import '../styles/ChatContainer.css';
 
 const props = defineProps({
   selectedHistory: {
@@ -160,23 +161,46 @@ const handleFileUpload = async (event) => {
   try {
     // 检查文件类型
     const file = files[0];
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
+    const allowedTypes = {
+      // 文档类型
+      'application/pdf': 'pdf',
+      'text/plain': 'txt',
+      'text/markdown': 'markdown',
+      'text/mdx': 'mdx',
+      'text/html': 'html',
+      'text/htm': 'htm',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+      'application/vnd.ms-excel': 'xls',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+      'text/csv': 'csv',
+      'text/md': 'md'
+    };
     
-    if (!allowedTypes.includes(file.type)) {
-      throw new Error('只支持PNG、JPEG、JPG、WEBP和GIF格式的图片');
+    if (!allowedTypes[file.type]) {
+      throw new Error('不支持的文件类型，请上传txt、markdown、mdx、pdf、html、xlsx、xls、docx、csv、md或htm格式的文件');
     }
     
     // 上传文件
-    const result = await uploadFile(file, 'abc-123');
+    const result = await uploadFile(file, 'abc-123', props.conversationId);
+    
+    // 确定文件类型
+    const fileType = allowedTypes[file.type];
+    
+    // 创建预览URL（仅对图片有效）
+    let previewUrl = null;
+    if (fileType === 'image') {
+      previewUrl = URL.createObjectURL(file);
+    }
     
     // 添加到已上传文件列表
     uploadedFiles.value.push({
       id: result.id,
       name: result.name,
-      type: 'image',
+      type: "document",
       transfer_method: 'local_file',
       upload_file_id: result.id,
-      preview: URL.createObjectURL(file)
+      preview: previewUrl,
+      originalType: file.type
     });
     
   } catch (error) {
@@ -466,7 +490,20 @@ const sendFeedback = async (messageId, rating) => {
         <!-- 显示上传的文件 -->
         <div v-if="message.files && message.files.length > 0" class="message-files">
           <div v-for="file in message.files" :key="file.id" class="message-file-preview">
-            <img :src="file.preview" :alt="file.name" />
+            <!-- 图片类型显示预览图 -->
+            <img v-if="file.type === 'image' && file.preview" :src="file.preview" :alt="file.name" />
+            <!-- 非图片类型显示对应图标 -->
+            <div v-else class="file-icon-message">
+              <i class="fas" :class="{
+                'fa-file-pdf': file.type === 'pdf',
+                'fa-file-word': file.type === 'word',
+                'fa-file-excel': file.type === 'xlsx' || file.type === 'xls' || file.type === 'csv',
+                'fa-file-code': file.type === 'html' || file.type === 'htm',
+                'fa-file-alt': file.type === 'txt' || file.type === 'markdown' || file.type === 'mdx' || file.type === 'md',
+                'fa-file': !['pdf', 'word', 'docx', 'xlsx', 'xls', 'csv', 'html', 'htm', 'txt', 'markdown', 'mdx', 'md'].includes(file.type)
+              }"></i>
+              <span class="file-name-message">{{ file.name }}</span>
+            </div>
           </div>
         </div>
         <div class="content" v-html="message.type === 'user' ? message.content.replace(/\n/g, '<br>') : md.render(message.content)">
@@ -511,13 +548,13 @@ const sendFeedback = async (messageId, rating) => {
     <!-- 文件上传区域 -->
     <div class="file-upload-area">
       <label for="file-upload" class="file-upload-button" :class="{ 'disabled': isUploading }">
-        <i class="fas fa-image"></i>
-        {{ isUploading ? '上传中...' : '上传图片' }}
+        <i class="fas fa-file"></i>
+        {{ isUploading ? '上传中...' : '上传文件' }}
       </label>
       <input 
         id="file-upload" 
         type="file" 
-        accept="image/png,image/jpeg,image/jpg,image/webp,image/gif" 
+        accept="text/plain,text/markdown,text/mdx,application/pdf,text/html,text/htm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/csv,text/md" 
         @change="handleFileUpload" 
         :disabled="isUploading"
       />
@@ -531,7 +568,20 @@ const sendFeedback = async (messageId, rating) => {
       <!-- 已上传文件预览 -->
       <div v-if="uploadedFiles.length > 0" class="uploaded-files">
         <div v-for="file in uploadedFiles" :key="file.id" class="file-preview">
-          <img :src="file.preview" :alt="file.name" />
+          <!-- 图片类型显示预览图 -->
+          <img v-if="file.type === 'image'" :src="file.preview" :alt="file.name" />
+          <!-- 非图片类型显示对应图标 -->
+          <div v-else class="file-icon">
+            <i class="fas" :class="{
+              'fa-file-pdf': file.type === 'pdf',
+              'fa-file-word': file.type === 'docx',
+              'fa-file-excel': file.type === 'xlsx' || file.type === 'xls' || file.type === 'csv',
+              'fa-file-code': file.type === 'html' || file.type === 'htm',
+              'fa-file-alt': file.type === 'txt' || file.type === 'markdown' || file.type === 'mdx' || file.type === 'md',
+              'fa-file': !['pdf', 'docx', 'xlsx', 'xls', 'csv', 'html', 'htm', 'txt', 'markdown', 'mdx', 'md'].includes(file.type)
+            }"></i>
+            <span class="file-name">{{ file.name }}</span>
+          </div>
           <button class="remove-file" @click="removeFile(file.id)">
             <i class="fas fa-times"></i>
           </button>
@@ -556,468 +606,3 @@ const sendFeedback = async (messageId, rating) => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.chat-container {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.input-container {
-  padding: 20px;
-  border-top: 1px solid #e6e8eb;
-  background: white;
-}
-
-.input-box {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.input-content {
-  position: relative;
-  flex: 1;
-}
-
-textarea {
-  width: 100%;
-  height: 80px;
-  padding: 12px;
-  border: 1px solid #e6e8eb;
-  border-radius: 8px;
-  resize: none;
-  font-size: 14px;
-}
-
-.uploaded-files-inline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px;
-  background: #f8fafc;
-  border-radius: 8px;
-  margin-top: 8px;
-}
-
-.file-preview-inline {
-  position: relative;
-  width: 60px;
-  height: 60px;
-  border-radius: 4px;
-  overflow: hidden;
-  border: 1px solid #e6e8eb;
-}
-
-.file-preview-inline img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.remove-file-inline {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 18px;
-  height: 18px;
-  border-radius: 9px;
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-  font-size: 10px;
-}
-
-.remove-file-inline:hover {
-  background: rgba(0, 0, 0, 0.7);
-}
-
-.file-upload-button-inline {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: #f1f5f9;
-  color: #1e3a8a;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.file-upload-button-inline:hover {
-  background: #e2e8f0;
-}
-
-.file-upload-button-inline.disabled {
-  background: #e2e8f0;
-  color: #94a3b8;
-  cursor: not-allowed;
-}
-
-/* 文件上传相关样式 */
-.file-upload-area {
-  margin-bottom: 12px;
-}
-
-.file-upload-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: #f1f5f9;
-  color: #1e3a8a;
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.file-upload-button:hover {
-  background: #e2e8f0;
-}
-
-.file-upload-button.disabled {
-  background: #e2e8f0;
-  color: #94a3b8;
-  cursor: not-allowed;
-}
-
-input[type="file"] {
-  display: none;
-}
-
-.upload-error {
-  margin-top: 8px;
-  color: #dc2626;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.uploaded-files {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.file-preview {
-  position: relative;
-  width: 100px;
-  height: 100px;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #e6e8eb;
-}
-
-.file-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.remove-file {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 24px;
-  height: 24px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-  font-size: 12px;
-}
-
-.remove-file:hover {
-  background: rgba(0, 0, 0, 0.7);
-}
-
-button {
-  padding: 12px 24px;
-  background: #1e3a8a;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: background-color 0.3s ease;
-}
-
-button:disabled {
-  background: #94a3b8;
-  cursor: not-allowed;
-}
-
-button:hover:not(:disabled) {
-  background: #1e40af;
-}
-
-.message {
-  margin-bottom: 24px;
-  display: flex;
-  gap: 16px;
-}
-
-.message .avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 20px;
-  background: #e2e8f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.content-wrapper {
-  flex: 1;
-  position: relative;
-}
-
-.message .content {
-  background: #f8fafc;
-  padding: 16px;
-  border-radius: 12px;
-  font-size: 14px;
-  line-height: 1.6;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-/* Markdown样式 */
-.message .content :deep(h1),
-.message .content :deep(h2),
-.message .content :deep(h3),
-.message .content :deep(h4),
-.message .content :deep(h5),
-.message .content :deep(h6) {
-  margin-top: 1em;
-  margin-bottom: 0.5em;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.message .content :deep(h1) {
-  font-size: 1.5em;
-}
-
-.message .content :deep(h2) {
-  font-size: 1.3em;
-}
-
-.message .content :deep(h3) {
-  font-size: 1.1em;
-}
-
-.message .content :deep(p) {
-  margin-bottom: 1em;
-}
-
-.message .content :deep(ul),
-.message .content :deep(ol) {
-  margin-bottom: 1em;
-  padding-left: 2em;
-}
-
-.message .content :deep(li) {
-  margin-bottom: 0.5em;
-}
-
-.message .content :deep(pre) {
-  background: #f1f5f9;
-  padding: 1em;
-  border-radius: 6px;
-  overflow-x: auto;
-  margin-bottom: 1em;
-}
-
-.message .content :deep(code) {
-  font-family: monospace;
-  background: #f1f5f9;
-  padding: 0.2em 0.4em;
-  border-radius: 3px;
-  font-size: 0.9em;
-}
-
-.message .content :deep(pre code) {
-  background: transparent;
-  padding: 0;
-  border-radius: 0;
-}
-
-.message .content :deep(blockquote) {
-  border-left: 4px solid #e2e8f0;
-  padding-left: 1em;
-  margin-left: 0;
-  margin-bottom: 1em;
-  color: #64748b;
-}
-
-.message .content :deep(table) {
-  border-collapse: collapse;
-  width: 100%;
-  margin-bottom: 1em;
-}
-
-.message .content :deep(th),
-.message .content :deep(td) {
-  border: 1px solid #e2e8f0;
-  padding: 0.5em;
-  text-align: left;
-}
-
-.message .content :deep(th) {
-  background: #f8fafc;
-  border-radius: 8px;
-  padding: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.suggested-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #64748b;
-  margin-bottom: 8px;
-}
-
-.question-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.question-item {
-  background: #eff6ff;
-  padding: 8px 12px;
-  border-radius: 16px;
-  font-size: 13px;
-  color: #1e3a8a;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.question-item:hover {
-  background: #dbeafe;
-}
-
-button.stop-button {
-  background: #dc2626;
-}
-
-button.stop-button:hover {
-  background: #b91c1c;
-}
-
-.message-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
-}
-
-.copy-button {
-  background: transparent;
-  color: #64748b;
-  padding: 6px 12px;
-  font-size: 12px;
-  border-radius: 4px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
-}
-
-.position-top-right {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 10;
-  padding: 4px 8px;
-  font-size: 11px;
-}
-
-.copy-button:hover {
-  background: #f1f5f9;
-  color: #1e3a8a;
-}
-
-.copy-button.success {
-  background: #10b981;
-  color: white;
-  border-color: #10b981;
-}
-
-.copy-button i {
-  margin-right: 4px;
-}
-
-/* 点赞按钮样式 */
-.feedback-buttons {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
-  gap: 8px;
-}
-
-.feedback-button {
-  background: transparent;
-  color: #64748b;
-  padding: 6px 12px;
-  font-size: 12px;
-  border-radius: 4px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
-}
-
-.feedback-button:hover {
-  background: #f1f5f9;
-  color: #1e3a8a;
-}
-
-.feedback-button.active {
-  background: #1e3a8a;
-  color: white;
-  border-color: #1e3a8a;
-}
-
-.feedback-button i {
-  margin-right: 4px;
-}
-
-/* 消息中的文件预览样式 */
-.message-files {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.message-file-preview {
-  width: 150px;
-  height: 150px;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #e6e8eb;
-}
-
-.message-file-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-</style>

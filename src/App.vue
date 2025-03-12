@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import Sidebar from './components/Sidebar.vue';
 import ChatContainer from './components/ChatContainer.vue';
+import './styles/App.css';
 
 // 用于存储当前选中的历史记录项目
 const selectedHistory = ref('');
