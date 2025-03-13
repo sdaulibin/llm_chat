@@ -1,0 +1,126 @@
+replicaCount: 1
+
+image:
+  repository: harbor.devops.qdb.com/devops/openresty
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "1.17.8.2-lua-4"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: "sllc"
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+
+hostNetwork: false
+command: ["/usr/local/openresty/bin/openresty"]
+args: ["-g", "daemon off;", "-c", "/usr/local/openresty/nginx/conf/nginx.conf"]
+
+
+config: |
+  worker_processes  4;
+  worker_rlimit_nofile 65535;
+  events {
+          use epoll;
+          worker_connections  65535;
+          multi_accept on;
+  }
+  
+  http {
+    include mime.types;
+    default_type application/octet-stream;
+    sendfile on;
+    keepalive_timeout 65;
+
+    server {
+        listen 80;
+        server_name localhost;
+        root /usr/local/openresty/nginx/html;
+        index index.html;
+
+        # 前端路由配置
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+    }
+}
+
+
+ports:
+  - name: sllc
+    containerPort: 80
+    protocol: TCP
+
+service:
+  type: ClusterIP
+  port:
+    - name: sllc
+      protocol: TCP
+      port: 80
+      targetPort: 80
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+  # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: sllc.devops.qdb.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+          servicePortName: sllc
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+resources: 
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  limits:
+    cpu: 1000m
+    memory: 1024Mi
+  requests:
+    cpu: 1000m
+    memory: 1024Mi
+
+nodeSelector: {}
+  # kubernetes.io/hostname: "devwork1"
+
+
+tolerations: []
+
+affinity: {}
+
+envs:
+  - name: LUAJIT_LIB
+    value: "/usr/local/openresty/luajit/lib"
+  - name: LUAJIT_INC
+    value: "/usr/local/openresty/luajit/include/luajit-2.1"
+
+hostAliases: {}
+  # - hostnames:
+  #   - "tdh01"
+  #   - "test"
+  #   ip: "10.1.91.159"
+  # - hostnames: 
+  #   - "tdh02"
+  #   ip: "10.1.91.161"
+
+
+volumeMounts: 
+  - mountPath: /usr/local/openresty/nginx/conf/nginx.conf
+    name: config
+    subPath: nginx.conf
+volumes:
+  - configMap:
+      name: sllc-config
+    name: config
