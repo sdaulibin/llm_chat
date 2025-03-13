@@ -1,22 +1,16 @@
 <script setup>
-import { ref, watch, onMounted, defineEmits } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import { setApiKey, sendChatMessage, handleStreamResponse, stopChatMessage, getSuggestedQuestions, feedbackMessage, uploadFile } from '../services/difyApi';
 import MarkdownIt from 'markdown-it';
 import '../styles/ChatContainer.css';
 
 const props = defineProps({
-  selectedHistory: {
-    type: String,
-    default: ''
-  },
-  conversationId: {
-    type: String,
-    default: ''
-  }
+  selectedHistory: { type: String, default: '' },
+  conversationId: { type: String, default: '' }
 });
 
-// 定义事件
 const emit = defineEmits(['add-history', 'save-conversation']);
+
 
 // 重置聊天内容的方法
 const resetChat = () => {
@@ -66,26 +60,16 @@ defineExpose({
   loadConversation
 });
 
-// Dify API密钥 - 已直接设置，无需用户输入
-//const API_KEY = ref('app-CVmaUK0HDbPgzocvGfjSjN4R');
 const API_KEY = ref('app-dRSe1A33PkkMZiXTp6JHrQdy');
-// const API_KEY = ref('app-WM6ZwfOrPn90GTPLi12FkXGV');
-// 当前会话ID
 const conversationId = ref('');
-// 当前消息ID，用于停止响应
 const currentMessageId = ref('');
-// 是否正在加载
 const isLoading = ref(false);
-// 是否显示API密钥输入框
-const showApiKeyInput = ref(false);
-// 建议问题列表
 const suggestedQuestions = ref([]);
-// 上传的文件列表
 const uploadedFiles = ref([]);
-// 是否正在上传文件
 const isUploading = ref(false);
-// 上传错误信息
 const uploadError = ref('');
+const copySuccess = ref(null);
+const newMessage = ref('');
 
 const messages = ref([
   {
@@ -96,16 +80,12 @@ const messages = ref([
   }
 ]);
 
-const newMessage = ref('');
-
-// 初始化Markdown解析器
 const md = new MarkdownIt({
-  html: true,        // 启用HTML标签
-  breaks: true,      // 转换\n为<br>
-  linkify: true,     // 自动将URL转换为链接
-  typographer: true, // 启用一些语言中性的替换和引号美化
+  html: true,
+  breaks: true,
+  linkify: true,
+  typographer: true,
   highlight: function (str, lang) {
-    // 增强代码高亮显示
     if (lang) {
       return `<pre class="language-${lang}"><code class="language-${lang}">${str}</code></pre>`;
     } 
@@ -113,9 +93,7 @@ const md = new MarkdownIt({
   }
 });
 
-// 设置API密钥
 onMounted(() => {
-  // API密钥已直接设置，无需从本地存储获取
   setApiKey(API_KEY.value);
   messages.value = [
     {
@@ -132,25 +110,8 @@ watch(() => props.selectedHistory, (newVal) => {
   }
 });
 
-// 保存API密钥
-const saveApiKey = () => {
-  if (!API_KEY.value.trim()) {
-    alert('请输入有效的API密钥');
-    return;
-  }
-  
-  setApiKey(API_KEY.value);
-  localStorage.setItem('dify_api_key', API_KEY.value);
-  showApiKeyInput.value = false;
-  messages.value = [
-    {
-      type: 'bot',
-      content: '您好！我是您的智能办公助手。请问有什么可以帮您？'
-    }
-  ];
-};
 
-// 处理文件上传
+
 const handleFileUpload = async (event) => {
   const files = event.target.files;
   if (!files || files.length === 0) return;
@@ -213,7 +174,6 @@ const handleFileUpload = async (event) => {
   }
 };
 
-// 移除已上传的文件
 const removeFile = (fileId) => {
   const fileIndex = uploadedFiles.value.findIndex(file => file.id === fileId);
   if (fileIndex !== -1) {
@@ -225,14 +185,9 @@ const removeFile = (fileId) => {
   }
 };
 
-// 发送消息到Dify API
 const sendToDify = async (query) => {
   isLoading.value = true;
   try {
-    // 直接使用props中的conversationId，不再需要生成新的conversationId
-    // 如果有现有的conversationId则使用，否则API会自动生成
-    
-    // 准备文件数据
     const files = uploadedFiles.value.map(file => ({
       type: file.type,
       transfer_method: file.transfer_method,
@@ -348,16 +303,6 @@ const sendMessage = () => {
   // 保存当前会话消息
   saveCurrentConversation();
   
-  // 检查API密钥是否已设置
-  if (!API_KEY.value) {
-    messages.value.push({
-      type: 'bot',
-      content: '请先设置Dify API密钥才能使用AI助手功能。',
-      isError: true
-    });
-    return;
-  }
-  
   // 发送消息到Dify API
   sendToDify(userQuestion);
   
@@ -365,7 +310,6 @@ const sendMessage = () => {
   uploadedFiles.value = [];
 };
 
-// 停止响应
 const stopResponse = async () => {
   if (!currentMessageId.value || !isLoading.value) return;
   
@@ -384,7 +328,6 @@ const stopResponse = async () => {
   }
 };
 
-// 获取下一轮建议问题列表
 const fetchSuggestedQuestions = async (messageId) => {
   try {
     const response = await getSuggestedQuestions(messageId, 'abc-123', props.conversationId);
@@ -404,7 +347,6 @@ const fetchSuggestedQuestions = async (messageId) => {
   }
 };
 
-// 使用建议问题
 const useSuggestedQuestion = (question) => {
   if (!question) return;
   
@@ -418,37 +360,24 @@ const useSuggestedQuestion = (question) => {
   suggestedQuestions.value = [];
 };
 
-// 复制AI回答内容到剪贴板
 const copyToClipboard = (content) => {
-  // 创建一个临时元素来存放要复制的文本
   const tempElement = document.createElement('div');
   tempElement.innerHTML = content;
-  
-  // 获取纯文本内容（去除HTML标签）
   const textContent = tempElement.textContent || tempElement.innerText;
   
-  // 使用Clipboard API复制内容
   navigator.clipboard.writeText(textContent)
-    .then(() => {
-      // 复制成功的反馈
-      showCopySuccess();
-    })
+    .then(() => showCopySuccess())
     .catch(err => {
       console.error('复制失败:', err);
       alert('复制失败，请重试');
     });
 };
 
-// 显示复制成功的反馈
-const copySuccess = ref(null);
 const showCopySuccess = () => {
   copySuccess.value = true;
-  setTimeout(() => {
-    copySuccess.value = null;
-  }, 2000);
+  setTimeout(() => copySuccess.value = null, 2000);
 };
 
-// 发送消息反馈（点赞/点踩）
 const sendFeedback = async (messageId, rating) => {
   if (!messageId) return;
   

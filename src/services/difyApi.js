@@ -4,9 +4,9 @@
  */
 
 // API基础URL
-// const API_BASE_URL = 'http://localhost/v1';
-const API_BASE_URL = 'http://localhost:8090/v1';
-//const API_BASE_URL = 'http://10.238.149.28:30000/v1';
+// 从环境变量中读取API基础URL，如果不存在则使用占位符
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+//const API_BASE_URL = "http://reverent_pasteur.orb.local:8090/v1";
 // 存储API密钥
 let apiKey = '';
 
