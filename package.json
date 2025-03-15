@@ -1,11 +1,14 @@
 {
-  "name": "llm_demo",
+  "name": "star_llm_chat",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:sit": "vite build --mode sit",
+    "build:uat": "vite build --mode uat",
+    "build:prod": "vite build --mode production",
     "preview": "vite preview"
   },
   "dependencies": {

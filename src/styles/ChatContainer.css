@@ -269,6 +269,13 @@ button:hover:not(:disabled) {
   margin-bottom: 24px;
   display: flex;
   gap: 16px;
+  position: relative;
+}
+
+/* 用户消息样式 - 显示在右侧 */
+.message.user {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
 }
 
 .message .avatar {
@@ -279,11 +286,19 @@ button:hover:not(:disabled) {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .content-wrapper {
   flex: 1;
   position: relative;
+  max-width: 70%;
+}
+
+.message.user .content-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .message .content {
@@ -293,6 +308,51 @@ button:hover:not(:disabled) {
   font-size: 14px;
   line-height: 1.6;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* 用户消息内容样式 */
+.message.user .content {
+  background: #1e3a8a;
+  color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-top-right-radius: 4px; /* 右上角更尖锐 */
+}
+
+/* 消息文件样式 */
+.message.user .message-files {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+
+/* 为AI回答的复制按钮位置 */
+.message:not(.user) .position-top-right {
+  right: 8px;
+  left: auto;
+}
+
+/* 点赞按钮对齐 */
+.message:not(.user) .feedback-buttons {
+  justify-content: flex-end;
+}
+
+/* 修改Markdown在用户消息中的颜色 */
+.message.user .content a {
+  color: #93c5fd;
+}
+
+.message.user .content code {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.message.user .content :deep(pre) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.message.user .content :deep(blockquote) {
+  border-left: 4px solid rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* Markdown样式 */
@@ -514,4 +574,107 @@ button.stop-button:hover {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* 通用按钮样式 */
+.action-button {
+  background: white;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 用户消息外的按钮位置 */
+.user-message-actions {
+  position: absolute;
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.content-wrapper:hover .user-message-actions {
+  opacity: 1;
+}
+
+/* 用户消息气泡容器样式 */
+.user-bubble-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;  /* 使内容右对齐 */
+  width: 100%;
+  position: relative;
+}
+
+.user-bubble-container .content {
+  align-self: flex-end; /* 内容向右对齐 */
+  max-width: 100%; /* 允许内容占据可用宽度 */
+}
+
+/* 用户消息按钮位置调整 */
+.user-bubble-container .user-message-actions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+  align-self: flex-start; /* 按钮左对齐 */
+  opacity: 0.15; /* 默认几乎透明 */
+  transition: all 0.2s ease;
+}
+
+.message.user:hover .user-bubble-container .user-message-actions {
+  opacity: 1; /* 悬停时完全不透明 */
+}
+
+/* 用户消息按钮样式 */
+.user-bubble-container .action-button {
+  background: white;
+  color: #4f46e5; /* 深蓝紫色图标 */
+  border: 1px solid #e5e7eb;
+  border-radius: 6px; /* 略微减小圆角 */
+  width: 28px; /* 缩小尺寸 */
+  height: 28px; /* 缩小尺寸 */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 恢复按钮悬停效果 */
+.user-bubble-container .action-button:hover {
+  background: #f8fafc;
+  color: #4338ca;
+  border-color: #c7d2fe;
+  transform: scale(1.05);
+  opacity: 1;
+}
+
+.user-bubble-container .favorite-button {
+  background: white;
+}
+
+.user-bubble-container .edit-button {
+  background: white;
+}
+
+.user-bubble-container .favorite-button i {
+  font-size: 14px; /* 缩小图标尺寸 */
+}
+
+.user-bubble-container .edit-button i {
+  font-size: 14px; /* 缩小图标尺寸 */
 }

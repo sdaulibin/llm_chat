@@ -39,7 +39,7 @@ pipeline {
         string(name: 'HARBOR_URL', defaultValue: 'harbor.devops.qdb.com', description: 'harbor url')
         string(name: 'HARBOR_PROJECT', defaultValue: 'star', description: 'harbor project name')
         choice(choices: ['false', 'true'], description: '是否指定机器部署', name: 'SPECIFY_NODE')
-        string(name: 'DESTINATION_KEY', defaultValue: 'qdccb.cn/role', description: '要部署的目标机器')
+        string(name: 'DESTINATION_KEY', defaultValue: "qdccb\\.cn/role", description: '要部署的目标机器')
         string(name: 'DESTINATION_VALUE', defaultValue: 'star', description: '要部署的目标机器')
         string(name: 'HELM_NS', defaultValue: 'star-sit', description: 'k8s namespace')
         string(name: 'ftpCredential', defaultValue: 'devops-test-ftp-credential', description: 'ftp credential')
@@ -48,7 +48,7 @@ pipeline {
         string(name: 'ingress', defaultValue: 'nginx', description: 'ingress class name')
         string(name: 'replicas', defaultValue: '1', description: 'replica count')
         string(name: 'ingressHost', defaultValue: 'sllc-sit.devops.qdb.com', description: 'ingress host')
-        //string(name: 'DIFY_API_BASE_URL', defaultValue: 'http://localhost/', description: 'Dify API 基础URL')
+        string(name: 'NPM_REGISTRY', defaultValue: 'http://10.238.145.145:4873/', description: 'npm registry proxy')
     }
     stages {
 
@@ -87,6 +87,7 @@ pipeline {
                     export RELEASE_REGISTRY=${env.HARBOR_URL}/${env.HARBOR_PROJECT}
                     export RELEASE_VERSION=${env.GITLAB_COMMIT_ID}
                     export RELEASE_IMAGE=\${RELEASE_REGISTRY}/${env.projectName}:\${RELEASE_VERSION}
+                    export NPM_REGISTRY=${env.NPM_REGISTRY}
                     make -e  release-image.amd64
                     nerdctl --insecure-registry=true push \${RELEASE_IMAGE}-amd64
                     """

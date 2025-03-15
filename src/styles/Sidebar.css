@@ -17,6 +17,9 @@
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
+  height: calc(100% - 70px);
+  overflow-y: auto;
+  padding-bottom: 10px;
 }
 
 .sidebar-header {
@@ -86,6 +89,14 @@
   display: flex;
   align-items: center;
   z-index: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 10px 0;
+  background-color: white;
+  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
+  z-index: 5;
 }
 
 .new-chat-button {
@@ -174,6 +185,22 @@
 
 .section-title {
   padding: 8px 20px;
+  border-bottom: none;
+  padding-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: visible;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 20px;
+}
+
+.section-title {
   font-size: 14px;
   font-weight: 600;
   color: #64748b;
@@ -183,6 +210,35 @@
   max-height: 200px;
   overflow-y: auto;
 }
+.history-collection-button {
+  background: transparent;
+  color: #64748b;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.history-collection-button:hover {
+  background: #f1f5f9;
+  color: #1e3a8a;
+}
+
+.chat-sessions-list {
+  max-height: none;
+  min-height: 50px;
+  overflow-y: auto;
+  padding: 5px 10px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+}
 
 .chat-session-item {
   display: flex;
@@ -190,6 +246,17 @@
   justify-content: space-between;
   padding: 12px 20px;
   cursor: pointer;
+  padding: 12px 15px;
+  cursor: pointer;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  position: relative;
+  overflow: hidden;
+  min-height: 50px;
+  max-height: 50px;
+  transform: translateX(0);
+  transition: transform 0.2s ease-out, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .session-content {
@@ -197,6 +264,7 @@
   align-items: center;
   gap: 10px;
   flex: 1;
+  z-index: 1;
 }
 
 .delete-button {
@@ -207,6 +275,7 @@
   font-size: 12px;
   display: none;
   border: none;
+  z-index: 2;
 }
 
 .chat-session-item:hover .delete-button {
@@ -225,6 +294,47 @@
 .chat-session-item.active {
   background: #e0f2fe;
   border-left: 3px solid #0ea5e9;
+  background-color: #f0f9ff;
+  border-color: #bfdbfe;
+  transform: translateX(10px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.chat-session-item.active {
+  background-color: #e0f2fe;
+  border-color: #7dd3fc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease-out, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chat-session-item.active:hover {
+  transform: translateX(10px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.sidebar.collapsed .chat-session-item:hover {
+  transform: translateX(5px);
+}
+
+/* 新增会话的动画效果 */
+@keyframes newChatHighlight {
+  0% {
+    background-color: #dbeafe;
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  50% {
+    background-color: #dbeafe;
+  }
+  100% {
+    background-color: transparent;
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.chat-session-item:first-child {
+  animation: newChatHighlight 1s ease;
 }
 
 .chat-session-item i {
@@ -280,4 +390,90 @@
   align-items: center;
   gap: 8px;
   font-style: italic;
+}
+
+/* 历史记录集合部分样式 */
+.history-collection-section {
+  padding: 10px 0;
+  border-top: 1px solid #f0f0f0;
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.history-button-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  transform: translateX(0);
+  transition: transform 0.2s ease-out, background-color 0.2s ease;
+}
+
+.history-button-wrapper:hover {
+  background: #f1f5f9;
+  transform: translateX(5px);
+}
+
+.history-button-wrapper i {
+  color: #64748b;
+  font-size: 16px;
+}
+
+.history-button-wrapper span {
+  color: #334155;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.history-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  transform: translateX(0);
+  transition: transform 0.2s ease-out, background-color 0.2s ease;
+}
+
+.history-icon-wrapper:hover {
+  background: #f1f5f9;
+  transform: translateX(5px);
+}
+
+.history-icon-wrapper i {
+  color: #64748b;
+  font-size: 16px;
+}
+
+/* 历史记录和收藏按钮悬停效果 */
+.history-button-wrapper,
+.favorites-button-wrapper,
+.history-icon-wrapper,
+.favorites-icon-wrapper {
+  transform: translateX(0);
+  transition: transform 0.2s ease-out, background-color 0.2s ease;
+}
+
+.history-button-wrapper:hover,
+.favorites-button-wrapper:hover,
+.history-icon-wrapper:hover,
+.favorites-icon-wrapper:hover {
+  transform: translateX(5px);
+}
+
+/* 添加聊天窗口项目中文本的样式，使其只显示一行 */
+.session-content span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 170px; /* 限制最大宽度，避免过长的文本 */
+}
+
+/* 折叠状态下不显示文本 */
+.sidebar.collapsed .session-content span {
+  display: none;
 }

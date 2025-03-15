@@ -45,9 +45,9 @@ clean:
 	rm -rf ./node_modules
 
 .PHONY: release-image.amd64
-release-image.amd64: clean build
-	nerdctl build --build-arg RELEASE_VERSION="$(RELEASE_VERSION)" --build-arg RELEASE_REGISTRY="$(RELEASE_REGISTRY)" --build-arg RELEASE_IMAGE="$(RELEASE_IMAGE)" -t $(RELEASE_IMAGE)-amd64 .
+release-image.amd64: clean
+	nerdctl build --build-arg RELEASE_VERSION="$(RELEASE_VERSION)" --build-arg RELEASE_REGISTRY="$(RELEASE_REGISTRY)" --build-arg RELEASE_IMAGE="$(RELEASE_IMAGE)" --build-arg NPM_REGISTRY="$(NPM_REGISTRY)" -t $(RELEASE_IMAGE)-amd64 .
 
 .PHONY: release-image.arm64
-release-image.arm64: clean build
-	nerdctl build --build-arg RELEASE_VERSION="$(RELEASE_VERSION)" --build-arg RELEASE_REGISTRY="$(RELEASE_REGISTRY)" --build-arg RELEASE_IMAGE="$(RELEASE_IMAGE)" -t $(RELEASE_IMAGE)-arm64 .
+release-image.arm64: clean 
+	nerdctl build --build-arg RELEASE_VERSION="$(RELEASE_VERSION)" --build-arg RELEASE_REGISTRY="$(RELEASE_REGISTRY)" --build-arg RELEASE_IMAGE="$(RELEASE_IMAGE)" --build-arg NPM_REGISTRY="$(NPM_REGISTRY)" -t $(RELEASE_IMAGE)-arm64 .

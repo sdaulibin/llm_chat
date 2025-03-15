@@ -22,14 +22,11 @@ args: ["-g", "daemon off;", "-c", "/usr/local/openresty/nginx/conf/nginx.conf"]
 
 
 config: |
-  worker_processes  4;
-  worker_rlimit_nofile 65535;
+  worker_processes auto;
   events {
-          use epoll;
-          worker_connections  65535;
-          multi_accept on;
+    worker_connections 1024;
   }
-  
+
   http {
     include mime.types;
     default_type application/octet-stream;
@@ -37,22 +34,35 @@ config: |
     keepalive_timeout 65;
 
     server {
-        listen 80;
+        listen 8080;
         server_name localhost;
         root /usr/local/openresty/nginx/html;
         index index.html;
 
-        # 前端路由配置
+        # 处理 /chat/static/ 路径下的静态资源
+        location /chat/static/ {
+            alias /usr/local/openresty/nginx/html/;
+            expires 30d;
+            add_header Cache-Control "public, max-age=2592000";
+        }
+
+        # 将根路径重定向到 /chat/static/
+        location = / {
+            return 301 /chat/static/index.html;
+        }
+
+        # 处理其他请求
         location / {
             try_files $uri $uri/ /index.html;
         }
     }
-}
+  }
+
 
 
 ports:
   - name: sllc
-    containerPort: 80
+    containerPort: 8080
     protocol: TCP
 
 service:
@@ -60,15 +70,16 @@ service:
   port:
     - name: sllc
       protocol: TCP
-      port: 80
-      targetPort: 80
+      port: 8080
+      targetPort: 8080
 
 ingress:
   enabled: true
   className: "nginx"
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-  # kubernetes.io/tls-acme: "true"
+  annotations:
+    nginx.ingress.kubernetes.io/real-ip-header: X-Forwarded-For
+    nginx.ingress.kubernetes.io/set-real-ip-from: 0.0.0.0/0
+    nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
   hosts:
     - host: sllc.devops.qdb.com
       paths:

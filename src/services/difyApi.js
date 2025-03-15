@@ -146,12 +146,14 @@ export const handleStreamResponse = async (response, {
                   type: 'message',
                   content: data.answer,
                   messageId: data.message_id,
+                  taskId: data.task_id,
                   conversationId: data.conversation_id
                 });
                 break;
               case 'message_end':
                 onEnd && onEnd({
                   messageId: data.message_id,
+                  taskId: data.task_id,
                   conversationId: data.conversation_id,
                   metadata: data.metadata
                 });

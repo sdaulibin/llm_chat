@@ -9,8 +9,7 @@ const props = defineProps({
   conversationId: { type: String, default: '' }
 });
 
-const emit = defineEmits(['add-history', 'save-conversation']);
-
+const emit = defineEmits(['add-history', 'save-conversation', 'add-to-favorites']);
 
 // 重置聊天内容的方法
 const resetChat = () => {
@@ -24,6 +23,7 @@ const resetChat = () => {
   ];
   conversationId.value = '';
   currentMessageId.value = '';
+  currentTaskId.value = '';
   isLoading.value = false;
   suggestedQuestions.value = [];
   newMessage.value = '';
@@ -63,6 +63,7 @@ defineExpose({
 const API_KEY = ref('app-dRSe1A33PkkMZiXTp6JHrQdy');
 const conversationId = ref('');
 const currentMessageId = ref('');
+const currentTaskId = ref('');
 const isLoading = ref(false);
 const suggestedQuestions = ref([]);
 const uploadedFiles = ref([]);
@@ -70,6 +71,10 @@ const isUploading = ref(false);
 const uploadError = ref('');
 const copySuccess = ref(null);
 const newMessage = ref('');
+
+const editingMessageIndex = ref(null); // 当前正在编辑的消息索引
+const isEditing = ref(false); // 是否处于编辑模式
+const editTooltip = ref(false); // 新增：控制编辑提示的显示
 
 const messages = ref([
   {
@@ -110,7 +115,46 @@ watch(() => props.selectedHistory, (newVal) => {
   }
 });
 
+// 收藏消息功能
+const favoriteMessage = (message) => {
+  if (!message || !message.content) return;
+  
+  // 创建收藏对象并传递给父组件
+  const favoriteItem = {
+    id: `fav-${Date.now()}`,
+    time: new Date().toISOString(),
+    content: message.content
+  };
+  
+  emit('add-to-favorites', favoriteItem);
+};
 
+// 修改编辑功能，只复制内容到输入框，并显示临时提示
+const editMessage = (index) => {
+  const message = messages.value[index];
+  if (message && message.type === 'user') {
+    newMessage.value = message.content;
+    
+    // 显示临时提示
+    editTooltip.value = true;
+    // 3秒后自动隐藏提示
+    setTimeout(() => {
+      editTooltip.value = false;
+    }, 3000);
+    
+    // 不再设置isEditing为true，因为我们不再使用永久性提示
+    // 但仍然将其设为true以便输入框获得焦点
+    isEditing.value = true;
+  }
+};
+
+// 修改取消编辑功能
+const cancelEdit = () => {
+  newMessage.value = '';
+  editingMessageIndex.value = null;
+  isEditing.value = false;
+  editTooltip.value = false; // 确保提示被隐藏
+};
 
 const handleFileUpload = async (event) => {
   const files = event.target.files;
@@ -216,6 +260,11 @@ const sendToDify = async (query) => {
         if (data.messageId && !currentMessageId.value) {
           currentMessageId.value = data.messageId;
         }
+
+        // 保存当前taskId，用于停止响应
+        if (data.taskId && !currentTaskId.value) {
+          currentTaskId.value = data.taskId;
+        }
         
         // 如果是第一次收到消息，创建新的机器人消息
         if (!messages.value.find(m => m.type === 'bot' && m.isLoading)) {
@@ -224,6 +273,7 @@ const sendToDify = async (query) => {
             content: fullResponse,
             isLoading: true,
             messageId: data.messageId,
+            taskId: data.taskId,
             feedback: null
           });
         } else {
@@ -245,6 +295,7 @@ const sendToDify = async (query) => {
       },
       onError: (error) => {
         console.error('流式响应错误:', error);
+        currentTaskId.value = ''
         messages.value.push({
           type: 'bot',
           content: '抱歉，处理您的请求时出现了错误。请稍后再试。',
@@ -258,7 +309,7 @@ const sendToDify = async (query) => {
           loadingMessage.isLoading = false;
         }
         isLoading.value = false;
-        
+        currentTaskId.value = ''
         // 保存会话ID
         if (data.conversationId) {
           conversationId.value = data.conversationId;
@@ -278,16 +329,18 @@ const sendToDify = async (query) => {
       isError: true
     });
     isLoading.value = false;
+    currentTaskId.value = ''
   }
 };
 
+// 修改发送消息函数，确保发送后隐藏提示
 const sendMessage = () => {
   if ((!newMessage.value.trim() && uploadedFiles.value.length === 0) || isLoading.value) return;
   
   // 构建用户消息内容
   let userContent = newMessage.value;
   
-  // 添加用户消息
+  // 无论是编辑还是新消息，都直接添加为新消息
   messages.value.push({
     type: 'user',
     content: userContent,
@@ -296,6 +349,10 @@ const sendMessage = () => {
   
   const userQuestion = newMessage.value;
   newMessage.value = '';
+  
+  // 重置编辑模式
+  isEditing.value = false;
+  editTooltip.value = false; // 隐藏提示
   
   // 将问题添加到历史记录
   emit('add-history', userQuestion);
@@ -311,10 +368,13 @@ const sendMessage = () => {
 };
 
 const stopResponse = async () => {
-  if (!currentMessageId.value || !isLoading.value) return;
+  if (!currentTaskId.value || !isLoading.value) return;
   
   try {
-    await stopChatMessage(currentMessageId.value, 'abc-123', props.conversationId);
+    console.log('停止响应请求发送中...'+currentTaskId.value);
+    const taskIdToStop = currentTaskId.value; // 保存当前taskId的副本
+    currentTaskId.value = ''; // 立即清空currentTaskId，防止重复请求
+    await stopChatMessage(taskIdToStop, 'abc-123', props.conversationId);
     isLoading.value = false;
     
     // 更新消息状态
@@ -411,7 +471,11 @@ const sendFeedback = async (messageId, rating) => {
     <!-- API密钥已预设，不再显示设置界面 -->
     
     <!-- 聊天消息列表 -->
-    <div v-for="(message, index) in messages" :key="index" class="message" :class="{ user: message.type === 'user', error: message.isError }">
+    <div v-for="(message, index) in messages" :key="index" class="message" :class="{ 
+      user: message.type === 'user', 
+      error: message.isError,
+      'history-collection': message.content.includes('历史记录集合')
+    }">
       <div class="avatar">
         <i class="fas" :class="message.type === 'user' ? 'fa-user' : 'fa-robot'" style="color: #64748b;"></i>
       </div>
@@ -435,14 +499,33 @@ const sendFeedback = async (messageId, rating) => {
             </div>
           </div>
         </div>
-        <div class="content" v-html="message.type === 'user' ? message.content.replace(/\n/g, '<br>') : md.render(message.content)">
+        
+        <!-- 修改结构，为用户消息创建一个包含内容和按钮的容器 -->
+        <div v-if="message.type === 'user'" class="user-bubble-container">
+          <!-- 内容部分 -->
+          <div class="content" v-html="message.content.replace(/\n/g, '<br>')"></div>
+          
+          <!-- 用户消息的操作按钮，直接跟在内容后面 -->
+          <div class="user-message-actions">
+            <button class="action-button favorite-button" @click="favoriteMessage(message)" title="收藏">
+              <i class="fas fa-star"></i>
+            </button>
+            <button class="action-button edit-button" @click="editMessage(index)" title="编辑">
+              <i class="fas fa-edit"></i>
+            </button>
+          </div>
         </div>
+        
+        <!-- AI消息内容 -->
+        <div v-if="message.type === 'bot'" class="content" v-html="md.render(message.content)"></div>
+        
         <!-- 只为AI回答添加复制按钮，并且不是初始化消息 -->
         <button v-if="message.type === 'bot' && index > 0" class="copy-button position-top-right" @click="copyToClipboard(md.render(message.content))" :class="{ 'success': copySuccess === true }">
           <i class="fas" :class="copySuccess === true ? 'fa-check' : 'fa-copy'"></i>
           <span v-if="copySuccess === true">已复制</span>
           <span v-else>复制</span>
         </button>
+        
         <!-- 为AI回答添加点赞按钮 -->
         <div v-if="message.type === 'bot' && message.messageId && index > 0" class="feedback-buttons">
           <button 
@@ -459,6 +542,12 @@ const sendFeedback = async (messageId, rating) => {
   </div>
 
   <div class="input-container">
+    <!-- 移除固定的编辑模式提示，改为动态提示 -->
+    <div v-if="editTooltip" class="edit-tooltip">
+      <i class="fas fa-info-circle"></i>
+      <span>已复制原消息到输入框，修改后将作为新消息发送</span>
+    </div>
+    
     <!-- 建议问题列表 -->
     <div v-if="suggestedQuestions.length > 0" class="suggested-questions">
       <div class="suggested-title">您可能想问：</div>
@@ -528,10 +617,102 @@ const sendFeedback = async (messageId, rating) => {
           发送
         </button>
         <button v-else class="stop-button" @click="stopResponse">
-          <i class="fas fa-stop"></i>
+          <i class="fas fa-stop fa-spin"></i>
           停止
         </button>
       </div>
     </div>
   </div>
 </template>
+
+<style>
+/* 历史记录集合特殊样式 */
+.message.history-collection .content {
+  background: #f0f9ff;
+  border-left: 4px solid #0ea5e9;
+}
+
+.message.history-collection .content h2 {
+  color: #0369a1;
+  margin-bottom: 16px;
+}
+
+.message.history-collection .content ol,
+.message.history-collection .content ul {
+  padding-left: 24px;
+}
+
+.message.history-collection .content li {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+/* 动态编辑提示样式 */
+.edit-tooltip {
+  position: absolute;
+  top: -50px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(49, 130, 206, 0.9);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 80%;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  animation: fadeInOut 3s ease-in-out forwards;
+}
+
+.edit-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid rgba(49, 130, 206, 0.9);
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translate(-50%, 10px); }
+  10% { opacity: 1; transform: translate(-50%, 0); }
+  90% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -10px); }
+}
+
+.input-container {
+  position: relative; /* 为了定位动态提示 */
+}
+
+/* 更新加载中动画样式 */
+.stop-button {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.stop-button:hover {
+  background-color: #dc2626;
+}
+
+.stop-button .fa-spin {
+  animation: pulse-spin 1.5s linear infinite;
+}
+
+@keyframes pulse-spin {
+  0% { transform: rotate(0deg); opacity: 0.7; }
+  50% { transform: rotate(180deg); opacity: 1; }
+  100% { transform: rotate(360deg); opacity: 0.7; }
+}
+
+/* 删除不需要的样式 */
+.loading-icon,
+.stop-icon {
+  display: none;
+}
+</style>
